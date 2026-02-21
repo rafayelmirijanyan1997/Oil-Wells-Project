@@ -1,0 +1,29 @@
+STATUS OF WELL: Open hole completion in Nesson lateral
+CONTRACTOR: J & R Well Service Rig #7
+TOOLPUSHER: Gordon Latim, Mike Weidmer
+FIELD SUPERVISOR: Les Fredrickson
+MUD TYPE: Fresh water
+WELLSITE GEOLOGISTS: Wayne Freisatz, Tom Griggs
+GEOSTEERING SYSTEM Sunburst Digital Wellsite Geological System
+PROSPECT GEOLOGIST: Mike Bryant
+ROCK SAMPLING: Later: 10' from 9,038' to 9,330"
+30' from 9,330' to 9,530"
+Sidetrack #1 10° from 9,470' to 9,500’
+30’ from 9,500' to 11,680"
+Sidetrack #2 30' from 11,390' to 12,800’
+CASING: 9.625" 36# K-55 set @ 2,960'
+5.5" 17/20/23# RS-90/L-80 to 9,702’
+HOLE SIZE: 4.5" from 9,038' to 9,530' Lateral #4
+4.5” from 9,460’ to 11,680' Sidetrack #1
+4.5” from 11,390' to 12,800' Sidetrack #2
+DRILL STEM TEST: none
+CORE PROGRAM: none
+H2S MONITORING: OSI Oilfield Saftey Incorporated
+MULTISHOT: Baker Hughes Inteq
+Jim Gate
+WHIPSTOCK: Baker Hughes Inteq - Roger Smith
+DIRECTIONAL DRILLERS: Baker Hughes Inteq
+Richard Davis, Tom Tuttle, Jerry Davis
+SUNBURS) 3,4
+CONSULTIN 6
+Cs Coo CT SERV Itt]

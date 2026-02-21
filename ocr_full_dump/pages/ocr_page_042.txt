@@ -1,0 +1,54 @@
+ares WELL COMPLETION OR RECOMPLETION REPORT ~- FORM 6 R
+VA aN INDUSTRIAL COMMISSION OF NORTH DAKOTA COE
+fe 0 OIL AND GAS DIVISION Par ye TS Well File No.
+ee) 600 EAST BOULEVARD DEPT 405 feo oe 11745
+ceoeAY BISMARCK, ND 58505-0840 fa 2003 a)
+SFN 2468 (03-2000) ba ee ey pes rar
+oh AO GR a gis Sy
+PLEA 3E READ INSTRUCTIONS BEFORE FILLING OUT FORM. X05 Liar . Nid
+PLEA 3E SUBMIT THE ORIGINAL AND THREE COPIES. <Oy, Baty
+Desic rate Type of Completion Well Namednd Number
+dilwel [[] Gas Weil CL] Recompletion [] SWDWell |Basic Game & Fish 34-3
+[] =or well [|] Deepened Well [] water Supply Well Spacing Unit Description
+Other:
+Nan :e Petroleum Corporation 406) 245-6248 Baker Field
+Addre 3s Pool
+PO | iox 7168 Madison
+Billi igs MT 59103] (_] wildcat [_] Development [_] Extension
+LOC 4TION OF WELL
+392 F SL 494 F WL] swsw 2 153 N 101 W_ {McKenzie
+At To : Producing Interval, Reported Below Par fPecton [owns [Range | Number of DSTs Run (See Back)
+_ F L F L N W none (this drig)
+At To al Depth Section Township Range Directional Survey Run?
+Nie Su wer Wil nes Cine ves
+cut: sindow 11/5/02 |November 21, 2002 |J & R Well Service Rig #7 1872 12800 MD 9120 TVD
+Prodi ing Interval(s), This Completion, Top, Bottom, Name (MD and TVD) Plug Back TD (Feet) (See Back)
+Nes on lateral: 9350' to 12800" MD, 9120-9135' TVD 12800 MD 9120 TvD
+Type if Electric and Other Logs Run (See Instructions) Was Well Cored? No ["] Yes
+hon: : this time List Intervals:
+_ CASING RECORD (Report all strings set in well
+Cas 19 Size (Inches) Sacks Cement
+3S _ 5/8 [2960 | 12 148 1100
+5_12 1330 P3450 |
+_ a GO Po
+___ Pe Po
+_ LINER RECORD TUBING RECORD
+[s Size
+(inc es) | (inches) | __ (Feet) (Feet) | 278 | 809 | Bost |
+— LE
+_ PERFORATION RECORD
+Taterval (MD)
+90 212800 openhole | ——s|_—noperfs | SO] OC—SOSSSCSC‘C;SS~*
+N isson: 9350-12800 fee
+_ a es
+_ a
+- a a Gn
+PRC SUCTION
+Date | f First Production Through Permanent |Producing Method (Flowing, Gas Lift, Pumping - Size & Type of Pump}Well Status (Producing or Shut-In}
+Wein aa December 12,2002 [Pumping
+Date: f Test Hours Tested |Choke Size _ Oil (Bols Gas (MCF Water (Bbls) | Oil Gravity - API (Corr.
+Flowil 3 Tubing Pressure (PSI) |Casing Pressure (PSI) Oil (Bots) Gas {MCF) {Water (Bbls) |Gas-Oil Ratio
+a omen e®)[esontaszesinson PSG [te fesse
+Test \ ‘imessed By Oil Transporter Disposition of Gas
+Dan’ ; Production Tesoro Bear Paw
+eor vi

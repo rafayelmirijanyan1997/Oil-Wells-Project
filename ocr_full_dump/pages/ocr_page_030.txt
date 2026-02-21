@@ -1,0 +1,56 @@
+: ____NANCE PETROLEUM CORPORATION
+{ t i WELL: BASIC GAME & FISH 34-3 FIELD: BAKER
+} LOCATION: SURF:SWSW SEC 2 153N 101W, MCKENZIE CO, ND
+1 I | 392' FSL & 494' FWL
+2960" {| { 9 5/8” BH @ TD:SESE SEC 3 153N 11STATUS: PUMPING OIL WELL
+| | 543' FSL &655' FEL
+t | ELEVATION: GL - 1850’ KB - 1872' ST FILE NO: 11745
+3450" | | TOP OF CMT = ACCTG NO. 60102 API# 33-053-02102
+| { SPUD DATE: 10/16/85 COMP DATE: 2/3/86
+| ORIGINAL ROTARY TD: 9596' TVD, 9716' TMD PBTD: 9561’ MD
+4034" | | KICK-OFF PT.
+] | SURF CSG: 9 5/8" 36# K-55 SET @ 2960’. CMT W/ 1100 SX.
+PROD CSG: 5 1/2" 17,20,23# L-80, RS-90 SET @ 9702". CMT Cml 2 stage, DV 8092’.
+| | 4st: 430 sk G+35% sf+10% salt, 2nd: 900 sk Lite+10% salt.
+| TUBING & BHA RODS & PUMP
+279 jt 2 7/8" L-80 tubing 1 1/2" x 30’ polish rod (30')
+| {| MSN w/ 1 1/4" x 20' diptube - 8773' 4"x 4' pony rod (4')
+{| } | | 6' perforated sub 92-1" Norris $7 reds (2300')
+| | 1 jt.2 7/8" tubing 120 - 7/8" Norris 97 rods (3000’)
+{ { | 5 1/2" Basin TAC - 8810" 412 - 3/4" Norris 97 rods (2800')
+8092" } [ DV TOOL 4 jt 2 7/8" tubing 22-1" scrprd Norris 90 (550')
+{ { bull plug - EOT 8844' 2-1" Norris 97 (50')
+| | ORIGINAL 4" x 30" srprd pony
+8392' | { MAX ANGLE 21/2" x 1 1/2" x 24' x 28' RHBM pump
+| ; | | 16 DEG. SALT DEPTH w/ 5' pingr, single valve
+{ {o | { DUNHAM = 6644-6712
+I | | Io PINE 7035-7100
+| | | CHARLES 8275-9004 5.1/2" SET @
+| ito] | 23# TCBOHC 45
+8773' | |) ( } SN WELLHEAD: CSGHD 9 5/8" X 11" 3000 C22.17# L-80 6624
+| Oo] oo} =| TBG HD 7 1/16" 5000. 23# TC80HC 6803
+| ! 20# L-80 7013
+8810' |<< >>| AC PUMP UNIT: LUFKIN MARK II - M912D-305- 23# TC80HC 7188
+J | W/DP-70 AJAX MOTOR 20# L-80 8251
+| | 7 SPM & 192” SL 23# TC80HC 9099
+8844' | } EOT 20# L-80 9702
+| | PERFS: NESSON 9234-54' 4 SPF
+8998' | | BLS
+| | Spur#2: 11390-11690"
+9022' | KOP pur#1: 9460-9530" LD
+41/2" HOLE __-
+| 4 1/2" open hole NESSON lateral leg 9120-9130’ TVD
+[ 9022-12800' 12800' TMD
+| Nesson top: 9350' MD
+9034' [eeeeeTsstsE
+| | 27°/100' BUILD RATE TO 90 3450' Nesson lateral TD:
+| { AZIMUTH 290 9350-12800" 12800' MD
+9234-54" = = NESSON PERFS 90.8 deg
+| { 12 DEG DEV. TVD 9120.68
+9346" | | PINNED COLLAR
+| {
+9529' | | PBTD PREPARED BY: GARY L EVERTZ DATE: 4115/03
+[tteeeeeeeeay BASIC343H.XLS
+9702 |*tttertteeey 5 1/2" Updated by: John Steele
+DIRICTIONAL WELL TMD - 9716', TVD - 9596'
+MAXIMUM ANGLE 16 DEG. @ 8392', 12 DEG. @ NESSON.

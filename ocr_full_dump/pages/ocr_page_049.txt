@@ -1,0 +1,44 @@
+; DIP ESTIMATES
+Average formation dips were calculated using the multiple contact points with
+
+known (or suspected) equivalent stratigraphic markers. The estimates are “straight line”
+
+extrapolations, but serve to give an approximate average dip. The large variation in the
+
+dip estimates may be due to drilling the lateral along the edge of the structure, or minor
+
+short term variations in the dip.
+Dip Estimates
+
+Dipping Hit
+Marker
+SE Be Be pe
+diff.
+[Top of Nesson* | 9350.00/9127.90] 1220.00], [- [- -} fdown
+FTop of Nesson | 9621.00} 9127.00] 1388.80|-0.90| 168.80| O.3tjup __|up
+[Top of Nesson* | 9785.00 9127.10] 1653.00] 0.10] 264.20) -0.02|flat [up
+[Top of Nesson* _|_ 9840.00] 9127.20] 1707.90] 0.10] 54.90] -0.10}down [down
+[Top of Nesson __[10280.00/ 9121.10 2146.80|-6.10] 438.90| 0.80jup up
+[Top of Nesson | 10400.00/ 9120.70) 2266.40|-0.40/ 119.60| 0.19jup__ down
+FTop of Nesson = [1080.00 9127.75] 2665.80] 1.05| 309.40] -0.15\down [up
+[Top of Nesson* —_|44006.00{9122.20| 2870.90| 0.45] 205.10] -0.13}down [down
+[Top of Nesson* _|11260.00} 9125.00] 3143.60| 1.60 43.90] -2.35|down [down
+FTop of Nesson* __|11620.00] 9119.50] 3482.40]-5.50] 338.60) _0.93jup __|up
+up
+[Top of Nesson* [12307.00/9121.25| 4127.50] 0.65| 111.10] -0.34|down [down
+[TopofNesson | 12515.00/ 9120.50] 4327.75|-0.75| 200.25 0.2tlup up
+[TopofNesson__[12755.00, 9121.30] 4566.10] 0.80} 238.35] -0.19|down [up
+rs es es |
+[Base of top porosity | 9360.00j9133.70\ 1240.50; SO; SSSS=Cs own
+|Base of top porosity | 9487.00! 9132.30) 1355.50|-0.80| 106.00[ “0.43jup up
+[Base of top porosity | 9566.00{0131.8017424.40|-0.50] _68.90| _0.42lup [up
+|Base of top porosity | 9900.00/ 9129.70) 1767.80|-2.10] 343.40| 0.35iup down
+|Base of top porosity [1000.00 9128.70] 1867.70|-1.00| _99.90[ 0.57|up up
+[Base of top porosity |10630.00| 9124.40] 2496.10|-4.30| 628.40] _0.39[up {down
+[Base of top porosity |10730.00| 9123.70] 2596.00/-0.70[ 99.90| 0.40lup_—— up
+Po |
+[Base Nesson* ___[11710.00[9136.80/3566.80|-|-[-E[down
+[Base Nesson* __|11778.00] 9136.60] 3632.30-0.20|65.50|_0.17[up_ [up
+Ps ee ee es | |
+UNBURS;| 3, 4
+CONSULTIN 0

@@ -1,0 +1,32 @@
+WELL DATA SUMMARY
+OPERATOR: Nance Petroleum Corporation
+ADDRESS: P.O. Box 7168, 550 N. 31st. St, Ste. #500
+Billings, Montana 59101
+{408) 245-6248
+WELL NAME: Basic Game & Fish 34-3H
+API#: 33-053-02102
+SURFACE LOCATION: 392' FSL & 494’ FWL
+SW SW Section 2, T153N, R101W
+BOTTOM HOLE LOCATION:
+Lateral #1 237.55" North & 1,388.06' West of surface location
+Approx. 629.55" FSL, 894.06’ FEL SE SE Sec. 3
+Sidetrack #1 970.22’ North & 3,406.95" West of surface location
+if Approx. 1,362’ FSL, 2,371" FWL NE SW Sec. 3
+Sidetrack #2 1,582.72' North & 4,338.8' West of surface location
+Approx. 1,975’ FSL, 1,439’ FWL NE SW Sec. 3
+FIELD: Baker Field
+COUNTY, STATE McKenzie County, North Dakota
+BASIN: Williston
+WELL TYPE: Horizontal Nesson (Mission Canyon)
+BASIS OF PROSPECT: Well Contro!, Acceleate Production, Add Reserves
+ELEVATION: SUB: 13°
+GL: 1,850’
+KB: 1,863°
+RE-ENTRY DATE: 11/2102
+TOTAL DEPTH/ DATE: Lateral # 4: 9,530' MD, 14:35 CST on 11/09/02
+Sidetrack #1: 11,680' MD, 08:35 CST on 11/15/02
+Sidetrack #2: 12,800' MD, 13:00 CST on 14/20/02
+TOTAL DRILLING DAYS: 21
+SUNBURST@:
+CONSULTING
+SaaenEEERRERIEREEEEEEEREREEEemeeeeeemememn eee A GEOLOGY SERVICES

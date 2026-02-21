@@ -1,0 +1,31 @@
+Industrial Commission of North Dakota
+Oil and Gas Division
+Spill / Incident Report
+Date/Time Reported : Jul 8 2009 / 12:37
+State Agency person :
+Responsible Party :
+Well Operator : SM ENERGY COMPANY
+Date/Time of Incident : 7/3/2009 12:00:00 AM
+NDIC File Number : 11745
+Facility Number :
+Well or Facility Name : BASIC GAME AND FISH 34-3
+Field Name : BAKER
+County : MCKENZIE
+Section : 2
+Township : 153
+Range : 101
+Quarter-Quarter : SW
+Quarter : SW
+Distance to nearest residence : 3 Miles
+Distance to nearest water well : 0.5 Miles
+Release Oil : 3 barrels
+Release Brine : 0 barrels
+Release Other : 0 barrels
+Recovered Oil : 3 barrels
+Recovered Brine : 0 barrels
+Recovered Other : 0 barrels
+Has/Will the incident be reported to the NRC? : No
+Was release contained :
+Description of other released substance :
+Immediate risk evaluation : None
+Followup Report Requested Y/N : N
