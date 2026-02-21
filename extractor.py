@@ -133,23 +133,39 @@ STOP_WORDS = set([
 def _norm(s):
     return re.sub(r"\s+", " ", (s or "")).strip()
 
-def value_after_label(lines, label):
+def value_for_label(lines, label):
     """
-    Find the line that equals `label` (or starts with it), then return the next line
-    that is not empty and not a label.
+    Supports:
+      - "Label" on its own line, value on next line(s)
+      - "Label: value"
+      - "Label value"
     """
-    label_l = label.lower()
+    label_l = _norm(label).lower()
+
     for i in range(len(lines)):
-        if _norm(lines[i]).lower() == label_l:
-            # scan forward for a value
+        line = _norm(lines[i])
+        low = line.lower()
+
+        # Case A: label is entire line
+        if low == label_l:
             for j in range(i + 1, min(i + 6, len(lines))):
                 v = _norm(lines[j])
                 if not v:
                     continue
-                # reject if this looks like another label
-                if v in STOP_WORDS:
+                if v.lower() in {x.lower() for x in STOP_WORDS}:
                     return None
                 return v
+
+        # Case B: label + value on same line
+        if low.startswith(label_l):
+            tail = line[len(label):].strip()
+            tail = tail.lstrip(":").strip()
+            if tail:
+                # reject if it looks like another label
+                if tail.lower() in {x.lower() for x in STOP_WORDS}:
+                    return None
+                return tail
+
     return None
 
 def parse_form_page_text(txt):
@@ -160,7 +176,7 @@ def parse_form_page_text(txt):
 
     # well file no (sometimes "Well File No." then number on next line)
     for lab in FORM_LABELS["well_file_no"]:
-        v = value_after_label(lines, lab)
+        v = value_for_label(lines, lab)
         if v and re.search(r"\b\d{3,6}\b", v):
             out["well_file_no"] = re.search(r"\b(\d{3,6})\b", v).group(1)
             break
@@ -171,7 +187,7 @@ def parse_form_page_text(txt):
         if out.get(key):
             continue
         for lab in labels:
-            v = value_after_label(lines, lab)
+            v = value_for_label(lines, lab)
             if v:
                 out[key] = v
                 break
@@ -307,6 +323,16 @@ STIM_KEYWORDS = ["Well Specific Stimulations", "Lbs Proppant", "Stimulation Stag
                  "Maximum Mreatment Pressure", "Maximum Treatment Rate", "Date Stimulated", "Stimulated Formation", "Top (Ft)", "Bottom (Ft)","Volume Units", ]
 
 
+def parse_fallbacks(t: str) -> dict:
+    out = {}
+    out["operator"]  = out.get("operator")  or _find(t, r"Well\s*Operator\s*:\s*(.+)")
+    out["well_name"] = out.get("well_name") or _find(t, r"Well\s*(?:or\s*Facility\s*)?Name\s*:\s*(.+)")
+    out["county"]    = out.get("county")    or _find(t, r"County\s*:\s*([A-Za-z ]+)")
+    out["well_file_no"] = out.get("well_file_no") or _find(t, r"(?:NDIC\s*File\s*Number|Well\s*File\s*No\.?)\s*:\s*([0-9]{3,6})")
+    return {k: v for k, v in out.items() if v}
+
+
+
 def extract_from_pdf(pdf_path: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     well: Dict[str, Any] = {}
     stim_blocks: List[Dict[str, Any]] = []
@@ -317,6 +343,12 @@ def extract_from_pdf(pdf_path: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]
 
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages):
+            fb = parse_fallbacks(text)
+            for k, v in fb.items():
+                
+                if v and not well.get(k):
+                    well[k] = v
+
             text = page.extract_text() or ""
             t = text.lower()
 
@@ -339,7 +371,8 @@ def extract_from_pdf(pdf_path: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]
                 likely_stim_pages.append(i)
 
     # If we already have everything without OCR, return
-    have_coords = bool(well.get("latitude_raw") and well.get("longitude_raw"))
+
+    have_coords = bool(well.get("latitude") and well.get("longitude"))
     have_well_id = bool(well.get("well_file_no") or well.get("api"))
     have_name = bool(well.get("well_name"))
     have_stim = len(stim_blocks) > 0
@@ -391,12 +424,10 @@ def extract_from_pdf(pdf_path: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]
             break
 
     return well, stim_blocks
-
-def upsert_to_db(session, well_data: Dict[str, Any], stim_data: List[Dict[str, Any]], source_pdf: str):
+def upsert_to_db(session, well_data, stim_data, source_pdf):
     well_file_no = well_data.get("well_file_no")
     api = well_data.get("api")
 
-    # Match by File No or API
     well_obj = None
     if well_file_no:
         well_obj = session.query(Well).filter(Well.well_file_no == well_file_no).one_or_none()
@@ -404,37 +435,49 @@ def upsert_to_db(session, well_data: Dict[str, Any], stim_data: List[Dict[str, A
         well_obj = session.query(Well).filter(Well.api == api).one_or_none()
 
     if well_obj is None:
-        well_obj = Well(
-            api=api,
-            well_file_no=well_file_no,
-            well_name=well_data.get("well_name"),
-            address=well_data.get("address"),
-            operator=well_data.get("operator"),
-            county=well_data.get("county"),
-            source_pdf=source_pdf,
-        )
+        well_obj = Well(well_file_no=well_file_no, api=api, source_pdf=source_pdf)
         session.add(well_obj)
         session.flush()
 
+
+    def set_if_empty(attr, value):
+        if value is None:
+            return
+        cur = getattr(well_obj, attr)
+        if cur is None or (isinstance(cur, str) and cur.strip() == ""):
+            setattr(well_obj, attr, value)
+
+    set_if_empty("well_name", well_data.get("well_name"))
+    set_if_empty("operator", well_data.get("operator"))
+    set_if_empty("county", well_data.get("county"))
+    set_if_empty("state", well_data.get("state"))
+    set_if_empty("address", well_data.get("address"))
+    set_if_empty("datum", well_data.get("datum"))
+    set_if_empty("shl", well_data.get("shl"))
+
+    # If you parse floats, store them
+    set_if_empty("latitude", well_data.get("latitude"))
+    set_if_empty("longitude", well_data.get("longitude"))
+
+    # stim insert (same as you have)
     for s in stim_data:
         session.add(Stimulation(
-        well_id=well_obj.id,
-        date_stimulated=s.get("date_stimulated"),
-        formation=s.get("formation"),
-        top_ft=s.get("top_ft"),
-        bottom_ft=s.get("bottom_ft"),
-        stages=s.get("stages"),
-        volume=s.get("volume"),
-        volume_units=s.get("volume_units"),
-        treatment_type=s.get("treatment_type"),
-        acid_pct=s.get("acid_pct"),
-        lbs_proppant=s.get("lbs_proppant"),
-        max_pressure_psi=s.get("max_pressure_psi"),
-        max_rate_bbl_min=s.get("max_rate_bbl_min"),
-        details_json=json.dumps(s.get("details", {})) if s.get("details") else None,
-        source_pdf=source_pdf
+            well_id=well_obj.id,
+            date_stimulated=s.get("date_stimulated"),
+            formation=s.get("formation"),
+            top_ft=s.get("top_ft"),
+            bottom_ft=s.get("bottom_ft"),
+            stages=s.get("stages"),
+            volume=s.get("volume"),
+            volume_units=s.get("volume_units"),
+            treatment_type=s.get("treatment_type"),
+            acid_pct=s.get("acid_pct"),
+            lbs_proppant=s.get("lbs_proppant"),
+            max_pressure_psi=s.get("max_pressure_psi"),
+            max_rate_bbl_min=s.get("max_rate_bbl_min"),
+            details_json=json.dumps(s.get("details", {})) if s.get("details") else None,
+            source_pdf=source_pdf
         ))
-
 
 
 def main(pdf_folder: str, db_path: str = "wells.sqlite"):
@@ -458,5 +501,5 @@ def main(pdf_folder: str, db_path: str = "wells.sqlite"):
                 print(f"[FAIL] {filename}: {e}")
 
 if __name__ == "__main__":
-    main("./DSCI560_Lab5")
+    main("./DSCI560_Lab5/data")
     
