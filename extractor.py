@@ -1,505 +1,225 @@
+import json
+import sys
 import os
 import re
-import json
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, List, Tuple
-from pdf2image import convert_from_path
-import pdfplumber
-import pytesseract
-from PIL import Image
-from sqlalchemy import (create_engine, Column, Integer, Float, Text, ForeignKey, UniqueConstraint)
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import warnings
-from cryptography.utils import CryptographyDeprecationWarning
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+from pathlib import Path
+from typing import Any, Optional, List, Dict, Tuple
+try:
+    import pypdf
+except Exception:
+    try:
+        import PyPDF2 as pypdf
+    except Exception:
+        pypdf = None
+if pypdf is None:
+    print('ERROR: pypdf or PyPDF2 is required. Install with: pip install pypdf')
+    sys.exit(1)
+try:
+    from pdf2image import convert_from_path
+    import pytesseract
+    OCR_AVAILABLE = True
+except Exception:
+    OCR_AVAILABLE = False
+PDF_DIR = Path('DSCI560_Lab5/data')
+OUTPUT_DIR = Path('extracted_data')
+MIN_TEXT_CHARS_PER_PAGE = 60
+OCR_DPI = 300
 
+def sanitize_filename(name: str) -> str:
+    safe = re.sub('[<>:"/\\\\|?*\\x00-\\x1f]', '_', name)
+    safe = re.sub('[\\s_]+', ' ', safe).strip()
+    return safe[:150] if safe else 'UNKNOWN'
 
-Base = declarative_base()
+def normalize_spaces(s: str) -> str:
+    return re.sub('[\\s\\u00a0]+', ' ', s or '').strip()
 
-class Well(Base):
-    __tablename__ = "wells"
-    id = Column(Integer, primary_key=True)
-    api = Column(Text, unique=True, nullable=True)
-    well_file_no = Column(Text, unique=True, nullable=True)  # Added for NDIC tracking
-    well_name = Column(Text)
-    operator = Column(Text)
-    county = Column(Text)
-    state = Column(Text)
-    latitude = Column(Float, nullable=True)
-    longitude = Column(Float, nullable=True)
-    datum = Column(Text, nullable=True)
-    shl = Column(Text, nullable=True)
-    source_pdf = Column(Text)
-    address = Column(Text, nullable=True)
-
-    stimulations = relationship("Stimulation", back_populates="well")
-
-class Stimulation(Base):
-    __tablename__ = "stimulations"
-    id = Column(Integer, primary_key=True)
-    well_id = Column(Integer, ForeignKey("wells.id"), nullable=False)
-
-    date_stimulated = Column(Text, nullable=True)
-    formation = Column(Text, nullable=True)
-    top_ft = Column(Integer, nullable=True)
-    bottom_ft = Column(Integer, nullable=True)
-    stages = Column(Integer, nullable=True)
-    volume = Column(Float, nullable=True)
-    volume_units = Column(Text, nullable=True)
-    treatment_type = Column(Text, nullable=True)
-    acid_pct = Column(Float, nullable=True)
-    lbs_proppant = Column(Float, nullable=True)
-    max_pressure_psi = Column(Float, nullable=True)
-    max_rate_bbl_min = Column(Float, nullable=True)
-    details_json = Column(Text, nullable=True)
-    source_pdf = Column(Text)
-
-    well = relationship("Well", back_populates="stimulations")
-
-#helper functions
-
-
-def clean(s: str) -> str:
-    return re.sub(r"\s+", " ", s).strip()
-
-def try_float(x: Optional[str]) -> Optional[float]:
-    if not x: 
+def to_int(s):
+    if not s:
         return None
-    x = x.replace(",", "").strip()
-    try: 
-        return float(x)
-    except: 
+    s = s.replace(',', '').strip()
+    try:
+        return int(s)
+    except ValueError:
         return None
 
-def try_int(x: Optional[str]) -> Optional[int]:
-    if not x: 
+def to_float(s):
+    if not s:
         return None
-    x = x.replace(",", "").strip()
-    try: 
-        return int(float(x))
-    except: 
+    s = s.replace(',', '').strip()
+    try:
+        return float(s)
+    except ValueError:
         return None
 
+def dms_to_decimal(deg: float, minutes: float, seconds: float, hemi: str) -> float:
+    value = abs(deg) + minutes / 60.0 + seconds / 3600.0
+    hemi = hemi.upper()
+    if hemi in ('S', 'W'):
+        value *= -1.0
+    return value
 
-def _find(text: str, pattern: str) -> Optional[str]:
-    m = re.search(pattern, text, re.I)
-    return clean(m.group(1)) if m else None
+def ocr_page(pdf_path: Path, page_number_1_indexed: int) -> str:
+    if not OCR_AVAILABLE:
+        return ''
+    images = convert_from_path(str(pdf_path), dpi=OCR_DPI, first_page=page_number_1_indexed, last_page=page_number_1_indexed)
+    if not images:
+        return ''
+    config = '--psm 6'
+    text = pytesseract.image_to_string(images[0], config=config)
+    return text or ''
+WELL_NAME_PATTERNS = [re.compile('Well\\s+Name\\s+and\\s+Number\\s*\\n\\s*([^\\n]+)', re.I), re.compile('Well\\s+Name\\s*:\\s*([^\\n]+)', re.I), re.compile('Official\\s+Well\\s+Name\\s*:\\s*([^\\n]+)', re.I)]
+API_PATTERNS = [re.compile('\\b(\\d{2}-\\d{3}-\\d{5})\\b'), re.compile('\\b(\\d{2}-\\d{3}-\\d{5,})\\b')]
+OPERATOR_PATTERNS = [re.compile('\\bOperator\\s*\\n\\s*([^\\n]+)', re.I), re.compile('\\bOperator\\s*:\\s*([^\\n]+)', re.I)]
+COUNTY_PATTERNS = [re.compile('\\bCounty\\s*\\n\\s*([A-Za-z]+)', re.I), re.compile('\\bCounty\\s*:\\s*([A-Za-z]+)', re.I), re.compile('\\bCounty\\s*([A-Za-z]+)\\b', re.I)]
+STATE_PATTERNS = [re.compile('\\bState\\s*\\n\\s*([A-Z]{2})\\b', re.I)]
+DMS_LAT = re.compile("(\\d{1,2})\\s*°\\s*(\\d{1,2})\\s*'\\s*([\\d.]+)\\s*([NS])", re.I)
+DMS_LON = re.compile("(\\d{1,3})\\s*°\\s*(\\d{1,2})\\s*'\\s*([\\d.]+)\\s*([EW])", re.I)
 
-
-
-def pick_scanned_pages(low_text_pages: List[int], first=25, last=25, step=15) -> List[int]:
-    if not low_text_pages:
-        return []
-    low_text_pages = sorted(low_text_pages)
-    mid = low_text_pages[first: max(first, len(low_text_pages) - last)]
-    sampled_mid = mid[::step]  # every Nth scanned page
-    return sorted(set(low_text_pages[:first] + low_text_pages[-last:] + sampled_mid))
-
-
-def dump_ocr_page(pdf_path, page_index, out_txt_path, dpi=200):
-    img = convert_from_path(pdf_path, dpi=dpi,
-                            first_page=page_index+1,
-                            last_page=page_index+1)[0]
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-    text = pytesseract.image_to_string(img, config="--oem 1 --psm 6")
-    with open(out_txt_path, "w", encoding="utf-8") as f:
-        f.write(text)
-    print("Wrote:", out_txt_path)
-
-
-
-
-
-#parsing
-FORM_LABELS = {
-    "well_name": ["Well Name and Number"],
-    "operator": ["Operator"],
-    "address": ["Address"],
-    "city": ["City"],
-    "state": ["State"],
-    "zip": ["Zip Code", "Zip"],
-    "county": ["County"],
-    "well_file_no": ["Well File No.", "Well File No", "NDIC File Number", "State File No."],
-}
-
-STOP_WORDS = set([
-    # common labels that should NOT be treated as values
-    "Operator", "Address", "City", "State", "Zip Code", "County", "Telephone Number",
-    "Field", "Section", "Township", "Range", "Qtr-Qtr", "Well File No.", "NDIC CTB No.",
-    "Name of First Purchaser", "Name of Transporter", "Principal Place of Business",
-])
-
-def _norm(s):
-    return re.sub(r"\s+", " ", (s or "")).strip()
-
-def value_for_label(lines, label):
-    """
-    Supports:
-      - "Label" on its own line, value on next line(s)
-      - "Label: value"
-      - "Label value"
-    """
-    label_l = _norm(label).lower()
-
-    for i in range(len(lines)):
-        line = _norm(lines[i])
-        low = line.lower()
-
-        # Case A: label is entire line
-        if low == label_l:
-            for j in range(i + 1, min(i + 6, len(lines))):
-                v = _norm(lines[j])
-                if not v:
-                    continue
-                if v.lower() in {x.lower() for x in STOP_WORDS}:
-                    return None
-                return v
-
-        # Case B: label + value on same line
-        if low.startswith(label_l):
-            tail = line[len(label):].strip()
-            tail = tail.lstrip(":").strip()
-            if tail:
-                # reject if it looks like another label
-                if tail.lower() in {x.lower() for x in STOP_WORDS}:
-                    return None
-                return tail
-
+def find_first(patterns, text):
+    for pat in patterns:
+        m = pat.search(text)
+        if m:
+            return normalize_spaces(m.group(1))
     return None
 
-def parse_form_page_text(txt):
-    lines = [_norm(x) for x in (txt or "").splitlines()]
-    lines = [x for x in lines if x]  # drop blanks
+def extract_lat_lon(text):
+    lat_matches = list(DMS_LAT.finditer(text))
+    lon_matches = list(DMS_LON.finditer(text))
+    lat = lon = None
+    if lat_matches:
+        m = lat_matches[-1]
+        lat = dms_to_decimal(float(m.group(1)), float(m.group(2)), float(m.group(3)), m.group(4))
+    if lon_matches:
+        m = lon_matches[-1]
+        lon = dms_to_decimal(float(m.group(1)), float(m.group(2)), float(m.group(3)), m.group(4))
+    return (lat, lon)
+_STIM_HDR = re.compile('Well\\s+Specific\\s+Stimulat|Date\\s+Stimulat', re.I)
+_TREAT_HDR = re.compile('Type\\s+Treatment', re.I)
+_DETAILS = re.compile('^Details\\s*$', re.I)
+_STIM_ROW = re.compile('(\\d{1,2}/\\d{1,2}/\\d{4})\\s+([A-Za-z][A-Za-z ]{1,40}?)\\s+(\\d{3,6})\\s+(\\d{3,6})\\s+(\\d{1,3})\\s+([\\d,]+)\\s+([A-Za-z]+)')
+_TREAT_LINE = re.compile('^([A-Za-z][A-Za-z ]{1,30}?)\\s+([\\d,]+)(?:\\s+([\\d,]+))?(?:\\s+([\\d.]+))?(?:\\s+([\\d.]+))?$')
+_PROPPANT_DETAIL = re.compile('^\\s*([A-Za-z0-9/ ]{2,40}?)\\s*[:\\-]\\s*([\\d,]+)\\s*$')
 
-    out = {}
-
-    # well file no (sometimes "Well File No." then number on next line)
-    for lab in FORM_LABELS["well_file_no"]:
-        v = value_for_label(lines, lab)
-        if v and re.search(r"\b\d{3,6}\b", v):
-            out["well_file_no"] = re.search(r"\b(\d{3,6})\b", v).group(1)
-            break
-
-    for key, labels in FORM_LABELS.items():
-        if key in ("well_file_no",):
-            continue
-        if out.get(key):
-            continue
-        for lab in labels:
-            v = value_for_label(lines, lab)
-            if v:
-                out[key] = v
-                break
-
-    # Normalize state to uppercase 2 letters when possible
-    if out.get("state"):
-        st = out["state"].strip().upper()
-        if len(st) == 2:
-            out["state"] = st
-
-    # County case normalization
-    if out.get("county"):
-        out["county"] = out["county"].title()
-
-    return out
-
-
-
-
-def ocr_page_pdfplumber(pdf_path: str, page_index: int) -> str:
-    """
-    OCR a single page using pdf2image
-    """
-    images = convert_from_path(
-        pdf_path,
-        dpi=300,
-        first_page=page_index + 1,
-        last_page=page_index + 1
-    )
-
-    if not images:
-        return ""
-
-    img = images[0]
-
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-
-    return pytesseract.image_to_string(img)
-
-
-
-
-
-def parse_stimulation_text(txt: str) -> List[Dict[str, Any]]:
-    t = txt or ""
-
-    # OCR-tolerant signals
-    SIGNAL_PATTERNS = [
-        r"\bdate\s*stim",                       # Date Stimulated
-        r"\bstimulation\s*stages?\b",
-        r"\bvolume\b",
-        r"\bvolume\s*units?\b",
-        r"\b(proppant|lbs\s*proppant|ilbs\s*proppant)\b",
-        r"\bmax(?:imum)?\s*treatment\s*pressure\b",
-        r"\bmax(?:imum)?\s*treatment\s*rate\b",
-        r"\b(a[cg]id|rcid)\s*%?\b",             # Acid %, Acid, rcid (OCR)
-        r"\bmesh\b",
-    ]
-    signals = sum(1 for p in SIGNAL_PATTERNS if re.search(p, t, re.I))
-    if signals < 2:
+def parse_stimulation_records(page_text):
+    if not page_text or not _STIM_HDR.search(page_text):
         return []
+    lines = [ln.strip() for ln in page_text.splitlines() if ln.strip()]
+    records = []
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        m = _STIM_ROW.search(ln)
+        if not m:
+            i += 1
+            continue
+        rec = {'date_stimulated': m.group(1), 'stimulated_formation': m.group(2).strip(), 'top_ft': to_int(m.group(3)), 'bottom_ft': to_int(m.group(4)), 'stimulation_stages': to_int(m.group(5)), 'volume': to_int(m.group(6)), 'volume_units': m.group(7), 'treatment_type': None, 'acid_percent': None, 'lbs_proppant': None, 'max_treatment_pressure_psi': None, 'max_treatment_rate_bbls_min': None, 'proppant_details': [], 'raw_details': None}
+        i += 1
+        raw_details = []
+        while i < len(lines) and (not _STIM_ROW.search(lines[i])):
+            cur = lines[i]
+            tm = _TREAT_LINE.match(cur)
+            if tm and (not rec['treatment_type']):
+                rec['treatment_type'] = tm.group(1).strip()
+                nums = [to_float(x) for x in tm.groups()[1:] if x is not None]
+                if len(nums) == 4:
+                    rec['acid_percent'] = nums[0]
+                    rec['lbs_proppant'] = nums[1]
+                    rec['max_treatment_pressure_psi'] = nums[2]
+                    rec['max_treatment_rate_bbls_min'] = nums[3]
+                elif len(nums) == 3:
+                    rec['lbs_proppant'] = nums[0]
+                    rec['max_treatment_pressure_psi'] = nums[1]
+                    rec['max_treatment_rate_bbls_min'] = nums[2]
+                elif len(nums) == 2:
+                    rec['lbs_proppant'] = nums[0]
+                    rec['max_treatment_pressure_psi'] = nums[1]
+                i += 1
+                continue
+            dm = _PROPPANT_DETAIL.match(cur)
+            if dm:
+                rec['proppant_details'].append({'type': normalize_spaces(dm.group(1)), 'amount': to_int(dm.group(2))})
+                i += 1
+                continue
+            raw_details.append(cur)
+            i += 1
+        if raw_details:
+            rec['raw_details'] = '\n'.join(raw_details)
+        records.append(rec)
+    return records
 
-    b = {}
+class PageExtract(object):
+    def __init__(self, page_number, method, text):
+        self.page_number = page_number
+        self.method = method
+        self.text = text
 
-    b["date_stimulated"] = _find(t, r"Date\s*Stim(?:ulated)?\s*([0-9]{2}/[0-9]{2}/[0-9]{4})")
-    b["formation"]       = _find(t, r"Stim(?:ulated)?\s*Formation\s*([A-Za-z0-9 \-/]+)")
-    b["top_ft"]          = try_int(_find(t, r"\bTop\s*\(?(?:Ft|FT)\)?\s*([0-9,]+)"))
-    b["bottom_ft"]       = try_int(_find(t, r"\bBottom\s*\(?(?:Ft|FT)\)?\s*([0-9,]+)"))
-    b["stages"]          = try_int(_find(t, r"Stimulation\s*Stages?\s*([0-9,]+)"))
-    b["volume"]          = try_float(_find(t, r"\bVolume\b\s*([0-9,]+(?:\.[0-9]+)?)"))
-    b["volume_units"]    = _find(t, r"Volume\s*Units?\s*([A-Za-z]+)")
-    b["treatment_type"]  = _find(t, r"Type\s*Treatment\s*([A-Za-z0-9 \-/]+)")
-
-    # Acid can OCR as rcid% / acid% / ac1d%
-    b["acid_pct"]        = try_float(_find(t, r"(?:A[cg]id|rcid)\s*%?\s*([0-9.]+)"))
-
-    # "ILbs Proppant" appears in W22099 :contentReference[oaicite:3]{index=3}
-    b["lbs_proppant"]    = try_float(_find(t, r"(?:I?\s*Lbs)\s*Proppant\s*([0-9,]+)"))
-
-    b["max_pressure_psi"]= try_float(_find(t, r"Maximum\s*Treatment\s*Pressure\s*\(PSI\)\s*([0-9,]+)"))
-    b["max_rate_bbl_min"]= try_float(_find(t, r"Maximum\s*Treatment\s*Rate\s*\(BBLS/Min\)\s*([0-9.]+)"))
-
-    details = {}
-    for dm in re.finditer(r"([0-9]{2,3}(?:/[0-9]{2,3})?\s*Mesh\s*\w*)\s*:\s*([0-9,]+)", t, re.I):
-        details[clean(dm.group(1))] = try_int(dm.group(2))
-    if details:
-        b["details"] = details
-
-    strong = sum(1 for k in ["lbs_proppant", "max_pressure_psi", "stages", "formation", "date_stimulated"] if b.get(k))
-    return [b] if strong >= 2 else []
-
-# -------------------------
-# Orchestrator
-# -------------------------
-
-def ocr_image(img: Image.Image) -> str:
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-    # Faster settings; good for forms/tables
-    return pytesseract.image_to_string(img, config="--oem 1 --psm 6")
-
-def ocr_pages_batch(pdf_path: str, page_indices: List[int], dpi: int = 200) -> Dict[int, str]:
-    if not page_indices:
-        return {}
-
-    page_indices = sorted(set(page_indices))
-    out = {}
-
-    # chunk consecutive pages to reduce poppler launches
-    chunks = []
-    start = prev = page_indices[0]
-    for p in page_indices[1:]:
-        if p == prev + 1:
-            prev = p
-        else:
-            chunks.append((start, prev))
-            start = prev = p
-    chunks.append((start, prev))
-
-    for (a, b) in chunks:
-        images = convert_from_path(pdf_path, dpi=dpi, first_page=a+1, last_page=b+1)
-        for offset, img in enumerate(images):
-            out[a + offset] = ocr_image(img)
-
-    return out
-
-
-
-
-WELL_KEYWORDS = ["latitude", "longitude", "datum", "surface hole location", "shl", "api"]
-STIM_KEYWORDS = ["Well Specific Stimulations", "Lbs Proppant", "Stimulation Stages",
-                 "Maximum Mreatment Pressure", "Maximum Treatment Rate", "Date Stimulated", "Stimulated Formation", "Top (Ft)", "Bottom (Ft)","Volume Units", ]
-
-
-def parse_fallbacks(t: str) -> dict:
-    out = {}
-    out["operator"]  = out.get("operator")  or _find(t, r"Well\s*Operator\s*:\s*(.+)")
-    out["well_name"] = out.get("well_name") or _find(t, r"Well\s*(?:or\s*Facility\s*)?Name\s*:\s*(.+)")
-    out["county"]    = out.get("county")    or _find(t, r"County\s*:\s*([A-Za-z ]+)")
-    out["well_file_no"] = out.get("well_file_no") or _find(t, r"(?:NDIC\s*File\s*Number|Well\s*File\s*No\.?)\s*:\s*([0-9]{3,6})")
-    return {k: v for k, v in out.items() if v}
-
-
-
-def extract_from_pdf(pdf_path: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
-    well: Dict[str, Any] = {}
-    stim_blocks: List[Dict[str, Any]] = []
-
-    low_text_pages = []
-    likely_well_pages = []
-    likely_stim_pages = []
-
-    with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages):
-            fb = parse_fallbacks(text)
-            for k, v in fb.items():
-                
-                if v and not well.get(k):
-                    well[k] = v
-
-            text = page.extract_text() or ""
-            t = text.lower()
-
-            # Parse from embedded text
-            w = parse_form_page_text(text)
-            for k, v in w.items():
-                if v and not well.get(k):
-                    well[k] = v
-
-            stim_blocks.extend(parse_stimulation_text(text))
-
-            # Track candidates
-            if len(text.strip()) < 40:
-                low_text_pages.append(i)
-
-            if any(k in t for k in WELL_KEYWORDS):
-                likely_well_pages.append(i)
-
-            if any(k in t for k in STIM_KEYWORDS):
-                likely_stim_pages.append(i)
-
-    # If we already have everything without OCR, return
-
-    have_coords = bool(well.get("latitude") and well.get("longitude"))
-    have_well_id = bool(well.get("well_file_no") or well.get("api"))
-    have_name = bool(well.get("well_name"))
-    have_stim = len(stim_blocks) > 0
-
-    if have_coords and have_well_id and have_name and have_stim:
-        return well, stim_blocks
-
-    # ---- OCR selection policy (CAPS are key for your scale) ----
-    # 1) Always OCR pages that were flagged by keyword (usually small)
-
-    N_SCANNED_CAP = 25
-    pages_to_ocr = set(pick_scanned_pages(low_text_pages, first=25, last=25, step=15))
-    pages_to_ocr.update(low_text_pages[:N_SCANNED_CAP])
-    pages_to_ocr.update(low_text_pages[-8:])
-
-
-    pages_to_ocr.update(likely_well_pages)
-    pages_to_ocr.update(likely_stim_pages)
-
-    # 2) Add only the FIRST N low-text pages (scanned), not all of them
-    #    Tune: 15–30 is a good range for 200–300 page PDFs
-    
-    pages_to_ocr.update(low_text_pages[:N_SCANNED_CAP])
-
-    # 3) (Optional) also OCR last few low-text pages (some packets put stim near end)
-    pages_to_ocr.update(low_text_pages[-8:])
-
-    # Batch OCR (FAST)
-    ocr_map = ocr_pages_batch(pdf_path, sorted(pages_to_ocr), dpi=200)
-
-    for i in sorted(ocr_map.keys()):
-        ocr_txt = ocr_map[i]
-
-        w2 = parse_form_page_text(ocr_txt)
-        for k, v in w2.items():
-            if v and not well.get(k):
-                well[k] = v
-
-        if len(stim_blocks) == 0:
-            stim_blocks.extend(parse_stimulation_text(ocr_txt))
-
-        # Early stop conditions (critical speed boost)
-        have_coords = bool(well.get("latitude_raw") and well.get("longitude_raw"))
-        have_well_id = bool(well.get("well_file_no") or well.get("api"))
-        have_name = bool(well.get("well_name"))
-        have_stim = len(stim_blocks) > 0
-
-        if have_coords and have_well_id and have_name and have_stim:
-            break
-
-    return well, stim_blocks
-def upsert_to_db(session, well_data, stim_data, source_pdf):
-    well_file_no = well_data.get("well_file_no")
-    api = well_data.get("api")
-
-    well_obj = None
-    if well_file_no:
-        well_obj = session.query(Well).filter(Well.well_file_no == well_file_no).one_or_none()
-    elif api:
-        well_obj = session.query(Well).filter(Well.api == api).one_or_none()
-
-    if well_obj is None:
-        well_obj = Well(well_file_no=well_file_no, api=api, source_pdf=source_pdf)
-        session.add(well_obj)
-        session.flush()
-
-
-    def set_if_empty(attr, value):
-        if value is None:
-            return
-        cur = getattr(well_obj, attr)
-        if cur is None or (isinstance(cur, str) and cur.strip() == ""):
-            setattr(well_obj, attr, value)
-
-    set_if_empty("well_name", well_data.get("well_name"))
-    set_if_empty("operator", well_data.get("operator"))
-    set_if_empty("county", well_data.get("county"))
-    set_if_empty("state", well_data.get("state"))
-    set_if_empty("address", well_data.get("address"))
-    set_if_empty("datum", well_data.get("datum"))
-    set_if_empty("shl", well_data.get("shl"))
-
-    # If you parse floats, store them
-    set_if_empty("latitude", well_data.get("latitude"))
-    set_if_empty("longitude", well_data.get("longitude"))
-
-    # stim insert (same as you have)
-    for s in stim_data:
-        session.add(Stimulation(
-            well_id=well_obj.id,
-            date_stimulated=s.get("date_stimulated"),
-            formation=s.get("formation"),
-            top_ft=s.get("top_ft"),
-            bottom_ft=s.get("bottom_ft"),
-            stages=s.get("stages"),
-            volume=s.get("volume"),
-            volume_units=s.get("volume_units"),
-            treatment_type=s.get("treatment_type"),
-            acid_pct=s.get("acid_pct"),
-            lbs_proppant=s.get("lbs_proppant"),
-            max_pressure_psi=s.get("max_pressure_psi"),
-            max_rate_bbl_min=s.get("max_rate_bbl_min"),
-            details_json=json.dumps(s.get("details", {})) if s.get("details") else None,
-            source_pdf=source_pdf
-        ))
-
-
-def main(pdf_folder: str, db_path: str = "wells.sqlite"):
-    engine = create_engine(f"sqlite:///{db_path}")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-
-    pdfs = [p for p in os.listdir(pdf_folder) if p.lower().endswith(".pdf")]
-    pdfs.sort()
-
-    with Session() as session:
-        for filename in pdfs:
-            pdf_path = os.path.join(pdf_folder, filename)
+def extract_pages(pdf_path):
+    try:
+        warnings.filterwarnings('ignore', category=pypdf.errors.PdfReadWarning)
+    except Exception:
+        warnings.filterwarnings('ignore')
+    pages: list[PageExtract] = []
+    with open(pdf_path, 'rb') as f:
+        reader = pypdf.PdfReader(f)
+        for idx, page in enumerate(reader.pages, start=1):
             try:
-                well, stims = extract_from_pdf(pdf_path)
-                upsert_to_db(session, well, stims, source_pdf=filename)
-                session.commit()
-                print(f"[OK] {filename}: FileNo={well.get('well_file_no')} Stims={len(stims)}")
-            except Exception as e:
-                session.rollback()
-                print(f"[FAIL] {filename}: {e}")
+                text = page.extract_text() or ''
+            except Exception as exc:
+                print(f'  warning: page {idx} text extraction failed ({type(exc).__name__}: {exc})')
+                text = ''
+            text = text.strip()
+            needs_ocr = len(text) < MIN_TEXT_CHARS_PER_PAGE
+            looks_like_stim = bool(_STIM_HDR.search(text))
+            has_date = bool(re.search('\\d{1,2}/\\d{1,2}/\\d{4}', text))
+            if looks_like_stim and (not has_date):
+                needs_ocr = True
+            if needs_ocr and OCR_AVAILABLE:
+                ocr_text = ocr_page(pdf_path, idx).strip()
+                if len(ocr_text) > len(text):
+                    pages.append(PageExtract(idx, 'ocr', ocr_text))
+                else:
+                    pages.append(PageExtract(idx, 'pypdf', text))
+            else:
+                pages.append(PageExtract(idx, 'pypdf', text))
+    return pages
 
-if __name__ == "__main__":
-    main("./DSCI560_Lab5/data")
-    
+def process_pdf(pdf_path):
+    pages = extract_pages(pdf_path)
+    full_text = '\n'.join((p.text for p in pages if p.text))
+    well_name = find_first(WELL_NAME_PATTERNS, full_text) or pdf_path.stem
+    well_name = normalize_spaces(re.sub('\\s+API\\s*:.*$', '', well_name, flags=re.I))
+    api_number = find_first(API_PATTERNS, full_text)
+    operator = find_first(OPERATOR_PATTERNS, full_text)
+    county = find_first(COUNTY_PATTERNS, full_text)
+    state = 'ND' if re.search('North\\s+Dakota', full_text, re.I) else find_first(STATE_PATTERNS, full_text) or 'N/A'
+    latitude, longitude = extract_lat_lon(full_text)
+    stim_records = []
+    for p in pages:
+        stim_records.extend(parse_stimulation_records(p.text))
+    data = {'pdf_filename': pdf_path.name, 'well_name': well_name, 'api_number': api_number, 'operator': operator, 'county': county, 'state': state, 'latitude': latitude, 'longitude': longitude, 'stimulation_records': stim_records, 'pages': [{'page_number': p.page_number, 'method': p.method, 'text_char_count': len(p.text or ''), 'text': p.text} for p in pages]}
+    return data
+
+def main() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    pdf_files = sorted(PDF_DIR.glob('*.pdf'))
+    print(f'Found {len(pdf_files)} PDF(s) in: {PDF_DIR}')
+    if not pdf_files:
+        return
+    if not OCR_AVAILABLE:
+        print('WARNING: OCR dependencies not available.')
+        print('Install: pip install pdf2image pytesseract pillow  &&  sudo apt-get install tesseract-ocr poppler-utils')
+    for pdf_path in pdf_files:
+        print(f'\nProcessing: {pdf_path.name}')
+        data = process_pdf(pdf_path)
+        out_name = sanitize_filename(data['well_name']) + '.json'
+        out_path = OUTPUT_DIR / out_name
+        with open(out_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f'  -> wrote: {out_path}')
+        print(f"  well_name={data.get('well_name')}")
+        print(f"  api_number={data.get('api_number')}")
+        print(f"  stimulation_records={len(data.get('stimulation_records', []))}")
+    print('\nDone.')
+if __name__ == '__main__':
+    main()
